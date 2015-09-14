@@ -1,24 +1,108 @@
-# This is a template for a Python scraper on morph.io (https://morph.io)
-# including some code snippets below that you should find helpful
+# coding: utf-8
 
-# import scraperwiki
-# import lxml.html
-#
-# # Read in a page
-# html = scraperwiki.scrape("http://foo.com")
-#
-# # Find something on the page using css selectors
-# root = lxml.html.fromstring(html)
-# root.cssselect("div[align='left']")
-#
-# # Write out to the sqlite database using scraperwiki library
-# scraperwiki.sqlite.save(unique_keys=['name'], data={"name": "susan", "occupation": "software developer"})
-#
-# # An arbitrary query against the database
-# scraperwiki.sql.select("* from data where 'name'='peter'")
+import datetime
+import scraperwiki
+import json
 
-# You don't have to do things with the ScraperWiki and lxml libraries.
-# You can use whatever libraries you want: https://morph.io/documentation/python
-# All that matters is that your final data is written to an SQLite database
-# called "data.sqlite" in the current working directory which has at least a table
-# called "data".
+TODAY = datetime.date.today().isoformat()
+
+URL = 'http://data.riksdagen.se/personlista/?iid=&fnamn=&enamn=&f_ar=&kn=&parti=&valkrets=&rdlstatus=&org=&utformat=json&termlista='
+
+
+def scrape_term(t):
+    j = json.loads(scraperwiki.scrape(URL))
+
+    for person in j['personlista']['person']:
+        image = person['bild_url_max']  # also 192 and 80 instead of max
+        dob = person['fodd_ar']  # Year
+        gender = person['kon']  # kvinna / man
+        surname = person['efternamn']
+        forename = person['tilltalsnamn']
+        disambiguation = person['iort']  # "Helene Petersson i Stockaryd"
+        party = person['parti']  # Acronym
+        constituency = person['valkrets']
+        # id = person['hangar_guid']
+        # status = person['status']  # Mostly MP, occasional vice-president, active replacement, Cabinet office
+        # sortname = person['sorteringsnamn']
+
+        name = '%s %s' % (forename, surname)
+        if disambiguation:
+            name += ' i %s' % disambiguation
+
+        twitter = facebook = email = phone = website = None
+
+        if isinstance(person["personuppgift"]['uppgift'], dict):
+            person["personuppgift"]['uppgift'] = [person["personuppgift"]['uppgift']]
+        for link in person["personuppgift"]['uppgift']:
+            code = link['kod']  # Swedish term e.g. Webbsida, Officiell e-postadress, Tjänstetelefon
+            value = link['uppgift']
+            # typ = link['typ']  # eadress/telefonnummer/titlar(kod=lang)/val(kod=KandiderarINastaVal/uppgift=true)
+            if code == 'Webbsida':
+                website = value
+            elif code == 'Officiell e-postadress':
+                email = value
+            elif code == u'Tjänstetelefon':
+                phone = value
+            elif code == u'Övriga webbsidor':
+                if 'facebook' in value:
+                    facebook = value
+                elif 'twitter' in value:
+                    twitter = value
+
+        seen = False
+        for post in person['personuppdrag']['uppdrag']:
+            if post['organ_kod'] != 'kam' or post['roll_kod'] != 'Riksdagsledamot':
+                continue
+            # TODO: Only handles current posts! Ignores dates!
+            if not post['from'] <= TODAY <= post['tom']:
+                continue
+            if seen:
+                raise Exception("Only deals with one post!")
+            seen = True
+            # post['roll_kod']  # Andre/Forste/Tredje vice talman, Ersattare, Fiksdagsledamot, Statsrådsersättare, Talmansersättare
+            # post['status']  # Ersättare, Ledig Ersättare, Ledig, Tjänstgörande
+            # post['typ']  # kammaruppdrag, talmansuppdrag
+            # post['from']
+            # post['tom']
+            # post['ordningsnummer']
+            # post['uppgift']
+            # post['sortering']
+            # post["organ_sortering"]
+            # post["uppdrag_rollsortering"]
+            # post["uppdrag_statussortering"]
+            data = {
+                'name': name,
+                'image': image,
+                'gender': gender,
+                'year_of_birth': dob,
+                'area': constituency,
+                'area_id': area_id(constituency),
+                'party': party,
+                'twitter': twitter,
+                'facebook': facebook,
+                'web': website,
+                'phone': phone,
+                'email': email,
+                'term': t['id'],
+                'source': t['source']
+            }
+            scraperwiki.sqlite.save(['name', 'term'], data)
+
+
+def area_id(area):
+    return 'ocd-division/country:se/constituency:%s' % area.lower().replace(' ', '-')
+
+
+terms = [
+    {
+        'id': 2014,
+        'name': '2014 election',
+        'start_date': '2014-09-14',
+        'source': 'http://data.riksdagen.se/',
+    },
+]
+scraperwiki.sqlite.save(['id'], terms, 'terms')
+
+# TODO: This actually scrapes just current people, so don't do it in a loop
+for term in terms:
+    scrape_term(term)
