@@ -2,12 +2,17 @@
 
 import datetime
 import scraperwiki
+import sys
 import json
 
 TODAY = datetime.date.today().isoformat()
 
 URL = 'http://data.riksdagen.se/personlista/?iid=&fnamn=&enamn=&f_ar=&kn=&parti=&valkrets=&rdlstatus=&org=&utformat=json&termlista='
 
+GENDER = {
+    'kvinna': 'female',
+    'man': 'male',
+}
 
 def scrape_term(t):
     j = json.loads(scraperwiki.scrape(URL))
@@ -21,7 +26,7 @@ def scrape_term(t):
         disambiguation = person['iort']  # "Helene Petersson i Stockaryd"
         party = person['parti']  # Acronym
         constituency = person['valkrets']
-        # id = person['hangar_guid']
+        id = person['intressent_id']
         # status = person['status']  # Mostly MP, occasional vice-president, active replacement, Cabinet office
         # sortname = person['sorteringsnamn']
 
@@ -40,7 +45,7 @@ def scrape_term(t):
             if code == 'Webbsida':
                 website = value
             elif code == 'Officiell e-postadress':
-                email = value
+                email = value.replace(u'[på]', '@')
             elif code == u'Tjänstetelefon':
                 phone = value
             elif code == u'Övriga webbsidor':
@@ -51,7 +56,8 @@ def scrape_term(t):
 
         seen = False
         for post in person['personuppdrag']['uppdrag']:
-            if post['organ_kod'] != 'kam' or post['roll_kod'] != 'Riksdagsledamot':
+            if post['organ_kod'] != 'kam' or post['roll_kod'] not in ('Riksdagsledamot', u'Ersättare', u'Statsrådsersättare', u'Talmansersättare'):
+                # Any roll_kod except the three vice talman
                 continue
             # TODO: Only handles current posts! Ignores dates!
             if not post['from'] <= TODAY <= post['tom']:
@@ -71,9 +77,10 @@ def scrape_term(t):
             # post["uppdrag_rollsortering"]
             # post["uppdrag_statussortering"]
             data = {
+                'id': id,
                 'name': name,
                 'image': image,
-                'gender': gender,
+                'gender': GENDER[gender],
                 'year_of_birth': dob,
                 'area': constituency,
                 'area_id': area_id(constituency),
@@ -88,6 +95,9 @@ def scrape_term(t):
             }
             scraperwiki.sqlite.save(['name', 'term'], data)
 
+        if not seen:
+            print "Did not output anything for %s" % name
+            sys.exit(1)
 
 def area_id(area):
     return 'ocd-division/country:se/constituency:%s' % area.lower().replace(' ', '-')
