@@ -14,6 +14,17 @@ GENDER = {
     'man': 'male',
 }
 
+PARTY = {
+    'S': u'Socialdemokraterna',
+    'MP': u'Miljöpartiet de gröna',
+    'FP': u'Folkpartiet liberalerna ',
+    'M': u'Moderata samlingspartiet',
+    'C': u'Centerpartiet',
+    'V': u'Vänsterpartiet',
+    'KD': u'Kristdemokraterna',
+    'SD': u'Sverigedemokraterna',
+}
+
 def scrape_term(t):
     j = json.loads(scraperwiki.scrape(URL))
 
@@ -84,7 +95,8 @@ def scrape_term(t):
                 'year_of_birth': dob,
                 'area': constituency,
                 'area_id': area_id(constituency),
-                'party': party,
+                'party_id': party,
+                'party': PARTY[party],
                 'twitter': twitter,
                 'facebook': facebook,
                 'web': website,
