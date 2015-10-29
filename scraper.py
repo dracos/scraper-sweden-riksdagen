@@ -23,6 +23,7 @@ PARTY = {
     'V': u'Vänsterpartiet',
     'KD': u'Kristdemokraterna',
     'SD': u'Sverigedemokraterna',
+    '-': u'Independent',
 }
 
 def scrape_term(t):
