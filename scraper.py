@@ -18,6 +18,7 @@ PARTY = {
     'S': u'Socialdemokraterna',
     'MP': u'Miljöpartiet de gröna',
     'FP': u'Folkpartiet liberalerna ',
+    'L': u'Liberalerna',
     'M': u'Moderata samlingspartiet',
     'C': u'Centerpartiet',
     'V': u'Vänsterpartiet',
