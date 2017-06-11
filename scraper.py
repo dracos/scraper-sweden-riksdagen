@@ -27,6 +27,12 @@ PARTY = {
     '-': u'Independent',
 }
 
+def ensure_list(l):
+    if isinstance(l, dict):
+        l = [l]
+    return l
+
+
 def scrape_term(t):
     j = json.loads(scraperwiki.scrape(URL))
 
@@ -49,9 +55,7 @@ def scrape_term(t):
 
         twitter = facebook = email = phone = website = None
 
-        if isinstance(person["personuppgift"]['uppgift'], dict):
-            person["personuppgift"]['uppgift'] = [person["personuppgift"]['uppgift']]
-        for link in person["personuppgift"]['uppgift']:
+        for link in ensure_list(person["personuppgift"]['uppgift']):
             code = link['kod']  # Swedish term e.g. Webbsida, Officiell e-postadress, Tjänstetelefon
             value = link['uppgift']
             # typ = link['typ']  # eadress/telefonnummer/titlar(kod=lang)/val(kod=KandiderarINastaVal/uppgift=true)
@@ -68,7 +72,7 @@ def scrape_term(t):
                     twitter = value
 
         seen = False
-        for post in person['personuppdrag']['uppdrag']:
+        for post in ensure_list(person['personuppdrag']['uppdrag']):
             if post['organ_kod'] != 'kam' or post['roll_kod'] not in ('Riksdagsledamot', u'Ersättare', u'Statsrådsersättare', u'Talmansersättare'):
                 # Any roll_kod except the three vice talman
                 continue
