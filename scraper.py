@@ -57,7 +57,8 @@ def scrape_term(t):
 
         for link in ensure_list(person["personuppgift"]['uppgift']):
             code = link['kod']  # Swedish term e.g. Webbsida, Officiell e-postadress, Tjänstetelefon
-            value = link['uppgift']
+            value = link['uppgift'][0]
+
             # typ = link['typ']  # eadress/telefonnummer/titlar(kod=lang)/val(kod=KandiderarINastaVal/uppgift=true)
             if code == 'Webbsida':
                 website = value
